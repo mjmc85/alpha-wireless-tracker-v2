@@ -97,7 +97,7 @@ export default function MeetingDetail() {
                 ))}
               </div>
             )}
-            <div style={{display:"flex",gap:8"}}>
+            <div style={{display:"flex",gap:8}}>
               <input
                 value={newContent[sec.key]||""}
                 onChange={e=>setNewContent({...newContent,[sec.key]:e.target.value})}
