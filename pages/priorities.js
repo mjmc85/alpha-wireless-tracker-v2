@@ -114,7 +114,7 @@ async function save() {
 
       {showModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="modal">
+          <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-title">{editing ? "Edit Priority" : "Add Priority"}</div>
             <div className="form-group"><label>Priority Number</label><input type="number" value={form.priority_number} onChange={e=>setForm({...form,priority_number:e.target.value})} /></div>
             <div className="form-group"><label>Title *</label><input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Priority title..." /></div>
