@@ -17,7 +17,7 @@ export default function Priorities() {
     if (!localStorage.getItem("aw_auth")) { router.push("/"); return }
     loadData()
   }, [])
-  
+
   async function loadData() {
     setLoading(true)
     const [{ data: p }, { data: q }, { data: u }] = await Promise.all([
@@ -42,19 +42,20 @@ export default function Priorities() {
     setForm({ title:p.title, quarter_id:p.quarter_id||"", owner_id:p.owner_id||"", status:p.status, overall_completion:p.overall_completion||0, priority_number:p.priority_number })
     setShowModal(true)
   }
-async function save() {
-  if (!form.title.trim()) return
-  const data = { title:form.title, quarter_id:form.quarter_id, owner_id:form.owner_id||null, status:form.status, overall_completion:parseInt(form.overall_completion)||0, priority_number:parseInt(form.priority_number)||1, last_updated:new Date().toISOString().split("T")[0] }
-  if (editing) {
-    await supabase.from("priorities").update(data).eq("id", editing.id)
-  } else {
-    const id = "priority-" + Date.now()
-    const { error } = await supabase.from("priorities").insert([{ id, ...data }])
-    if (error) { alert("Error saving: " + error.message); return }
+
+  async function save() {
+    if (!form.title.trim()) return
+    const data = { title:form.title, quarter_id:form.quarter_id, owner_id:form.owner_id||null, status:form.status, overall_completion:parseInt(form.overall_completion)||0, priority_number:parseInt(form.priority_number)||1, last_updated:new Date().toISOString().split("T")[0] }
+    if (editing) {
+      await supabase.from("priorities").update(data).eq("id", editing.id)
+    } else {
+      const id = "priority-" + Date.now()
+      const { error } = await supabase.from("priorities").insert([{ id, ...data }])
+      if (error) { alert("Error saving: " + error.message); return }
+    }
+    setShowModal(false)
+    loadData()
   }
-  setShowModal(false)
-  loadData()
-}
 
   async function deletePriority(id) {
     if (!confirm("Delete this priority and all its action items?")) return
@@ -112,48 +113,35 @@ async function save() {
         )}
       </div>
 
-     {showModal && (
-  <div
-    className="modal-overlay"
-    onMouseDown={e => {
-      if (e.target === e.currentTarget) setShowModal(false)
-    }}
-  >
-    <div className="modal" onMouseDown={e => e.stopPropagation()}>
-      <div className="modal-title">{editing ? "Edit Priority" : "Add Priority"}</div>
-      <div className="form-group"><label>Priority Number</label><input type="number" value={form.priority_number} onChange={e=>setForm({...form,priority_number:e.target.value})} onMouseDown={e => e.stopPropagation()} /></div>
-      <div className="form-group"><label>Title *</label><input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Priority title..." /></div>
-      <div className="form-group"><label>Quarter</label>
-        <select value={form.quarter_id} onChange={e=>setForm({...form,quarter_id:e.target.value})}>
-          <option value="">Select quarter...</option>
-          {quarters.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}
-        </select>
-      </div>
-      <div className="form-group"><label>Owner</label>
-        <select value={form.owner_id} onChange={e=>setForm({...form,owner_id:e.target.value})}>
-          <option value="">No owner</option>
-          {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-        </select>
-      </div>
-      <div className="form-group"><label>Status</label>
-        <select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}>
-          {["Not Started","In Progress","Complete","Blocked","On Hold"].map(s => <option key={s}>{s}</option>)}
-        </select>
-      </div>
-      <div className="form-group"><label>Overall Completion %</label><input type="number" min="0" max="100" value={form.overall_completion} onChange={e=>setForm({...form,overall_completion:e.target.value})} onMouseDown={e => e.stopPropagation()} /></div>
-      <div className="modal-actions">
-        <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-        <button className="btn btn-primary" onClick={save}>{editing ? "Save Changes" : "Add Priority"}</button>
-      </div>
-    </div>
-  </div>
-)}
+      {showModal && (
+        <div
+          className="modal-overlay"
+          onMouseDown={e => {
+            if (e.target === e.currentTarget) setShowModal(false)
+          }}
+        >
+          <div className="modal" onMouseDown={e => e.stopPropagation()}>
+            <div className="modal-title">{editing ? "Edit Priority" : "Add Priority"}</div>
+            <div className="form-group"><label>Priority Number</label><input type="number" value={form.priority_number} onChange={e=>setForm({...form,priority_number:e.target.value})} onMouseDown={e => e.stopPropagation()} /></div>
+            <div className="form-group"><label>Title *</label><input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Priority title..." /></div>
+            <div className="form-group"><label>Quarter</label>
+              <select value={form.quarter_id} onChange={e=>setForm({...form,quarter_id:e.target.value})}>
+                <option value="">Select quarter...</option>
+                {quarters.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}
+              </select>
+            </div>
+            <div className="form-group"><label>Owner</label>
+              <select value={form.owner_id} onChange={e=>setForm({...form,owner_id:e.target.value})}>
+                <option value="">No owner</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+              </select>
+            </div>
             <div className="form-group"><label>Status</label>
               <select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}>
                 {["Not Started","In Progress","Complete","Blocked","On Hold"].map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
-            <div className="form-group"><label>Overall Completion %</label><input type="number" min="0" max="100" value={form.overall_completion} onChange={e=>setForm({...form,overall_completion:e.target.value})} /></div>
+            <div className="form-group"><label>Overall Completion %</label><input type="number" min="0" max="100" value={form.overall_completion} onChange={e=>setForm({...form,overall_completion:e.target.value})} onMouseDown={e => e.stopPropagation()} /></div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
               <button className="btn btn-primary" onClick={save}>{editing ? "Save Changes" : "Add Priority"}</button>
