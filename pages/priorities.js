@@ -48,7 +48,9 @@ async function save() {
   if (editing) {
     await supabase.from("priorities").update(data).eq("id", editing.id)
   } else {
-    await supabase.from("priorities").insert([data])
+    const id = "priority-" + Date.now()
+    const { error } = await supabase.from("priorities").insert([{ id, ...data }])
+    if (error) { alert("Error saving: " + error.message); return }
   }
   setShowModal(false)
   loadData()
