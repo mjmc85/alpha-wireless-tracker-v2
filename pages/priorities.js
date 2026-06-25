@@ -17,7 +17,7 @@ export default function Priorities() {
     if (!localStorage.getItem("aw_auth")) { router.push("/"); return }
     loadData()
   }, [])
-
+ 
   async function loadData() {
     setLoading(true)
     const [{ data: p }, { data: q }, { data: u }] = await Promise.all([
