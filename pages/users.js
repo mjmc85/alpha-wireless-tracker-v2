@@ -29,7 +29,8 @@ export default function Users() {
     if (editing) { 
       await supabase.from("users").update(data).eq("id", editing.id) 
     } else { 
-      const { error } = await supabase.from("users").insert([data])
+      const id = "user-" + form.full_name.toLowerCase().replace(/\s+/g, "-")
+      const { error } = await supabase.from("users").insert([{ id, ...data }])
       if (error) { alert("Error saving: " + error.message); return }
     }
     setShowModal(false); loadData()
