@@ -48,30 +48,47 @@ export default function PriorityDetail() {
     if (!form.description.trim()) return
     const data = { priority_id:id, description:form.description, owner_id:form.owner_id||null, status:form.status, due_date:form.due_date||null, completion_percentage:parseInt(form.completion_percentage)||0 }
     if (editing) {
-      await supabase.from("action_items").update(data).eq("id", editing.id)
+      const { error } = await supabase.from("action_items").update(data).eq("id", editing.id)
+      if (error) { alert("Error saving: " + error.message); return }
     } else {
       const actionId = "action-" + Date.now()
       const { error } = await supabase.from("action_items").insert([{ id: actionId, ...data }])
       if (error) { alert("Error saving: " + error.message); return }
     }
     setShowModal(false)
-    loadData()
-    updatePriorityCompletion()
-  }
-
-  async function updatePriorityCompletion() {
-    const { data: items } = await supabase.from("action_items").select("completion_percentage").eq("priority_id", id)
-    if (items && items.length > 0) {
-      const avg = Math.round(items.reduce((sum, i) => sum + (i.completion_percentage || 0), 0) / items.length)
+    
+    // Reload action items immediately
+    const { data: updatedItems } = await supabase.from("action_items").select("*").eq("priority_id", id).order("created_at")
+    setActionItems(updatedItems || [])
+    
+    // Calculate and update priority completion
+    if (updatedItems && updatedItems.length > 0) {
+      const avg = Math.round(updatedItems.reduce((sum, i) => sum + (i.completion_percentage || 0), 0) / updatedItems.length)
       await supabase.from("priorities").update({ overall_completion: avg }).eq("id", id)
+      setPriority(prev => ({ ...prev, overall_completion: avg }))
+    } else {
+      await supabase.from("priorities").update({ overall_completion: 0 }).eq("id", id)
+      setPriority(prev => ({ ...prev, overall_completion: 0 }))
     }
   }
 
   async function deleteAction(actionId) {
     if (!confirm("Delete this action item?")) return
     await supabase.from("action_items").delete().eq("id", actionId)
-    loadData()
-    updatePriorityCompletion()
+    
+    // Reload action items immediately
+    const { data: updatedItems } = await supabase.from("action_items").select("*").eq("priority_id", id).order("created_at")
+    setActionItems(updatedItems || [])
+    
+    // Calculate and update priority completion
+    if (updatedItems && updatedItems.length > 0) {
+      const avg = Math.round(updatedItems.reduce((sum, i) => sum + (i.completion_percentage || 0), 0) / updatedItems.length)
+      await supabase.from("priorities").update({ overall_completion: avg }).eq("id", id)
+      setPriority(prev => ({ ...prev, overall_completion: avg }))
+    } else {
+      await supabase.from("priorities").update({ overall_completion: 0 }).eq("id", id)
+      setPriority(prev => ({ ...prev, overall_completion: 0 }))
+    }
   }
 
   function statusBadge(s) {
