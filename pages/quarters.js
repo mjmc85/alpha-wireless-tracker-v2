@@ -24,12 +24,30 @@ export default function Quarters() {
   function openEdit(q) { setEditing(q); setForm({ title:q.title, year:q.year, quarter_number:q.quarter_number, start_date:q.start_date||"", end_date:q.end_date||"", status:q.status }); setShowModal(true) }
 
   async function save() {
-    if (!form.title.trim()) return
-    const data = { title:form.title, year:parseInt(form.year), quarter_number:parseInt(form.quarter_number), start_date:form.start_date||null, end_date:form.end_date||null, status:form.status }
-    if (editing) { await supabase.from("quarters").update(data).eq("id", editing.id) }
-    else { await supabase.from("quarters").insert([data]) }
-    setShowModal(false); loadData()
+  if (!form.title.trim()) return
+
+  const data = {
+    title: form.title,
+    year: parseInt(form.year),
+    quarter_number: parseInt(form.quarter_number),
+    start_date: form.start_date || null,
+    end_date: form.end_date || null,
+    status: form.status
   }
+
+  if (editing) {
+    const { error } = await supabase.from("quarters").update(data).eq("id", editing.id)
+    if (error) { alert("Error saving: " + error.message); return }
+  } else {
+    // create a stable id like: q-2026-2
+    const id = `q-${data.year}-${data.quarter_number}`
+    const { error } = await supabase.from("quarters").insert([{ id, ...data }])
+    if (error) { alert("Error saving: " + error.message); return }
+  }
+
+  setShowModal(false)
+  loadData()
+}
 
   async function deleteQuarter(id) {
     if (!confirm("Delete this quarter?")) return
