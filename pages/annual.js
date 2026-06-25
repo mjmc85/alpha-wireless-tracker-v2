@@ -32,8 +32,14 @@ export default function Annual() {
   async function save() {
     if (!form.name.trim()) return
     const data = { name:form.name, region:form.region, segment:form.segment, revenue_towerco:parseFloat(form.revenue_towerco)||0, revenue_other:parseFloat(form.revenue_other)||0, notes:form.notes||null, owner_id:form.owner_id||null, active:true }
-    if (editing) { await supabase.from("target_accounts").update(data).eq("id", editing.id) }
-    else { await supabase.from("target_accounts").insert([data]) }
+    if (editing) { 
+      const { error } = await supabase.from("target_accounts").update(data).eq("id", editing.id)
+      if (error) { alert("Error saving: " + error.message); return }
+    } else { 
+      const id = "target-" + Date.now()
+      const { error } = await supabase.from("target_accounts").insert([{ id, ...data }])
+      if (error) { alert("Error saving: " + error.message); return }
+    }
     setShowModal(false); loadData()
   }
 
@@ -62,10 +68,10 @@ export default function Annual() {
               <tr key={a.id}>
                 <td style={{fontWeight:500,color:"#f1f5f9"}}>{a.name}</td>
                 <td><span className={"badge "+(a.segment==="TowerCo"?"badge-blue":"badge-purple")}>{a.segment}</span></td>
-                <td style={{color:"#10b981"}}>{a.revenue_towerco > 0 ? fmt(a.revenue_towerco) : "—"}</td>
-                <td style={{color:"#4a90d9"}}>{a.revenue_other > 0 ? fmt(a.revenue_other) : "—"}</td>
-                <td>{u ? u.full_name : "—"}</td>
-                <td style={{fontSize:12,color:"#64748b",maxWidth:200}}>{a.notes || "—"}</td>
+                <td style={{color:"#10b981"}}>{a.revenue_towerco > 0 ? fmt(a.revenue_towerco) : "-"}</td>
+                <td style={{color:"#4a90d9"}}>{a.revenue_other > 0 ? fmt(a.revenue_other) : "-"}</td>
+                <td>{u ? u.full_name : "-"}</td>
+                <td style={{fontSize:12,color:"#64748b",maxWidth:200}}>{a.notes || "-"}</td>
                 <td>
                   <div style={{display:"flex",gap:6}}>
                     <button className="btn btn-secondary btn-sm" onClick={()=>openEdit(a)}>Edit</button>
@@ -116,8 +122,11 @@ export default function Annual() {
       )}
 
       {showModal && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
-          <div className="modal">
+        <div 
+          className="modal-overlay" 
+          onMouseDown={e => { if (e.target === e.currentTarget) setShowModal(false) }}
+        >
+          <div className="modal" onMouseDown={e => e.stopPropagation()}>
             <div className="modal-title">{editing?"Edit Account":"Add Target Account"}</div>
             <div className="form-group"><label>Account Name *</label><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Account name..." /></div>
             <div className="form-group"><label>Region</label>
@@ -130,8 +139,8 @@ export default function Annual() {
                 <option>TowerCo</option><option>Other</option>
               </select>
             </div>
-            <div className="form-group"><label>TowerCo Revenue Target ($)</label><input type="number" value={form.revenue_towerco} onChange={e=>setForm({...form,revenue_towerco:e.target.value})} /></div>
-            <div className="form-group"><label>Other Revenue Target ($)</label><input type="number" value={form.revenue_other} onChange={e=>setForm({...form,revenue_other:e.target.value})} /></div>
+            <div className="form-group"><label>TowerCo Revenue Target ($)</label><input type="number" value={form.revenue_towerco} onChange={e=>setForm({...form,revenue_towerco:e.target.value})} onMouseDown={e => e.stopPropagation()} /></div>
+            <div className="form-group"><label>Other Revenue Target ($)</label><input type="number" value={form.revenue_other} onChange={e=>setForm({...form,revenue_other:e.target.value})} onMouseDown={e => e.stopPropagation()} /></div>
             <div className="form-group"><label>Owner</label>
               <select value={form.owner_id} onChange={e=>setForm({...form,owner_id:e.target.value})}>
                 <option value="">No owner</option>
