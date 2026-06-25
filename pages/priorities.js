@@ -42,18 +42,17 @@ export default function Priorities() {
     setForm({ title:p.title, quarter_id:p.quarter_id||"", owner_id:p.owner_id||"", status:p.status, overall_completion:p.overall_completion||0, priority_number:p.priority_number })
     setShowModal(true)
   }
-
-  async function save() {
-    if (!form.title.trim()) return
-    const data = { title:form.title, quarter_id:form.quarter_id, owner_id:form.owner_id||null, status:form.status, overall_completion:parseInt(form.overall_completion)||0, priority_number:parseInt(form.priority_number)||1, last_updated:new Date().toISOString().split("T")[0] }
-    if (editing) {
-      await supabase.from("priorities").update(data).eq("id", editing.id)
-    } else {
-      await supabase.from("priorities").insert([data])
-    }
-    setShowModal(false)
-    loadData()
+async function save() {
+  if (!form.title.trim()) return
+  const data = { title:form.title, quarter_id:form.quarter_id, owner_id:form.owner_id||null, status:form.status, overall_completion:parseInt(form.overall_completion)||0, priority_number:parseInt(form.priority_number)||1, last_updated:new Date().toISOString().split("T")[0] }
+  if (editing) {
+    await supabase.from("priorities").update(data).eq("id", editing.id)
+  } else {
+    await supabase.from("priorities").insert([data])
   }
+  setShowModal(false)
+  loadData()
+}
 
   async function deletePriority(id) {
     if (!confirm("Delete this priority and all its action items?")) return
