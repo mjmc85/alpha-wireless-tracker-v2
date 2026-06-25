@@ -26,8 +26,12 @@ export default function Users() {
   async function save() {
     if (!form.full_name.trim()) return
     const data = { full_name:form.full_name, role:form.role||null, email:form.email||null }
-    if (editing) { await supabase.from("users").update(data).eq("id", editing.id) }
-    else { await supabase.from("users").insert([data]) }
+    if (editing) { 
+      await supabase.from("users").update(data).eq("id", editing.id) 
+    } else { 
+      const { error } = await supabase.from("users").insert([data])
+      if (error) { alert("Error saving: " + error.message); return }
+    }
     setShowModal(false); loadData()
   }
 
