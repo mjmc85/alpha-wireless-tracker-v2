@@ -6,18 +6,25 @@ import { supabase } from "../lib/supabase"
 export default function Dashboard() {
   const router = useRouter()
   const [priorities, setPriorities] = useState([])
-  const [actions, setActions] = useState([])
+  const [actionItems, setActionItems] = useState([])
   const [quarters, setQuarters] = useState([])
   const [users, setUsers] = useState([])
-  const [filterQuarter, setFilterQuarter] = useState("all")
-  const [filterUser, setFilterUser] = useState("all")
-  const [activeTab, setActiveTab] = useState("priorities")
+  const [filterQuarter, setFilterQuarter] = useState("")
+  const [filterUser, setFilterUser] = useState("")
+  const [activeTab, setActiveTab] = useState("overview")
   const [loading, setLoading] = useState(true)
+  const [chartsLoaded, setChartsLoaded] = useState(false)
 
   useEffect(() => {
     if (!localStorage.getItem("aw_auth")) { router.push("/"); return }
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (!loading && priorities.length > 0 && typeof window !== "undefined") {
+      loadCharts()
+    }
+  }, [loading, priorities])
 
   async function loadData() {
     setLoading(true)
@@ -28,174 +35,234 @@ export default function Dashboard() {
       supabase.from("users").select("*").order("full_name"),
     ])
     setPriorities(p || [])
-    setActions(a || [])
+    setActionItems(a || [])
     setQuarters(q || [])
     setUsers(u || [])
     setLoading(false)
   }
 
-  const today = new Date(); today.setHours(0,0,0,0)
-  const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7)
+  async function loadCharts() {
+    if (typeof window === "undefined") return
+    
+    const Chart = (await import("chart.js/auto")).default
 
-  const filteredActions = actions.filter(a => {
-    if (filterUser !== "all" && a.owner_name !== filterUser) return false
-    if (filterQuarter !== "all") {
-      const p = priorities.find(p => p.id === a.priority_id)
-      if (!p || p.quarter_id !== filterQuarter) return false
+    // Destroy existing charts
+    const chartIds = ["priorityStatusChart", "actionStatusChart", "quarterChart", "revenueRegionChart"]
+    chartIds.forEach(id => {
+      const existing = Chart.getChart(id)
+      if (existing) existing.destroy()
+    })
+
+    // 1. Priority Status Doughnut Chart
+    const priorityStatusCounts = { "Not Started": 0, "In Progress": 0, "Complete": 0, "Blocked": 0, "On Hold": 0 }
+    priorities.forEach(p => { if (priorityStatusCounts[p.status] !== undefined) priorityStatusCounts[p.status]++ })
+    
+    new Chart(document.getElementById("priorityStatusChart"), {
+      type: "doughnut",
+      data: {
+        labels: Object.keys(priorityStatusCounts),
+        datasets: [{ data: Object.values(priorityStatusCounts), backgroundColor: ["#6b7280", "#3b82f6", "#10b981", "#ef4444", "#f59e0b"], borderWidth: 0 }]
+      },
+      options: { responsive: true, plugins: { legend: { position: "bottom", labels: { color: "#94a3b8" } }, title: { display: true, text: "Priority Status", color: "#f1f5f9" } } }
+    })
+
+    // 2. Action Items Status Doughnut Chart
+    const actionStatusCounts = { "Not Started": 0, "In Progress": 0, "Complete": 0, "Blocked": 0, "On Hold": 0 }
+    actionItems.forEach(a => { if (actionStatusCounts[a.status] !== undefined) actionStatusCounts[a.status]++ })
+    
+    new Chart(document.getElementById("actionStatusChart"), {
+      type: "doughnut",
+      data: {
+        labels: Object.keys(actionStatusCounts),
+        datasets: [{ data: Object.values(actionStatusCounts), backgroundColor: ["#6b7280", "#3b82f6", "#10b981", "#ef4444", "#f59e0b"], borderWidth: 0 }]
+      },
+      options: { responsive: true, plugins: { legend: { position: "bottom", labels: { color: "#94a3b8" } }, title: { display: true, text: "Action Items Status", color: "#f1f5f9" } } }
+    })
+
+    // 3. Priorities per Quarter Bar Chart
+    const quarterCounts = {}
+    quarters.forEach(q => { quarterCounts[q.title] = 0 })
+    priorities.forEach(p => {
+      const q = quarters.find(q => q.id === p.quarter_id)
+      if (q && quarterCounts[q.title] !== undefined) quarterCounts[q.title]++
+    })
+
+    new Chart(document.getElementById("quarterChart"), {
+      type: "bar",
+      data: {
+        labels: Object.keys(quarterCounts),
+        datasets: [{ label: "Priorities", data: Object.values(quarterCounts), backgroundColor: "#3b82f6", borderRadius: 6 }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: "Priorities by Quarter", color: "#f1f5f9" } }, scales: { y: { beginAtZero: true, ticks: { color: "#94a3b8" }, grid: { color: "#334155" } }, x: { ticks: { color: "#94a3b8" }, grid: { display: false } } } }
+    })
+
+    // 4. Revenue by Region Bar Chart (from target_accounts)
+    const { data: accounts } = await supabase.from("target_accounts").select("region, revenue_towerco").eq("active", true)
+    const revenueByRegion = {}
+    if (accounts) {
+      accounts.forEach(a => {
+        if (!revenueByRegion[a.region]) revenueByRegion[a.region] = 0
+        revenueByRegion[a.region] += a.revenue_towerco || 0
+      })
     }
-    return a.status !== "Complete"
-  })
 
-  function bucket(a) {
-    if (!a.due_date) return "later"
-    const d = new Date(a.due_date); d.setHours(0,0,0,0)
-    if (d < today) return "overdue"
-    if (d.toDateString() === today.toDateString()) return "today"
-    if (d <= nextWeek) return "nextweek"
-    return "later"
+    new Chart(document.getElementById("revenueRegionChart"), {
+      type: "bar",
+      data: {
+        labels: Object.keys(revenueByRegion),
+        datasets: [{ label: "TowerCo Revenue ($)", data: Object.values(revenueByRegion).map(v => v / 1000), backgroundColor: "#10b981", borderRadius: 6 }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: "TowerCo Revenue by Region ($K)", color: "#f1f5f9" } }, scales: { y: { beginAtZero: true, ticks: { color: "#94a3b8" }, grid: { color: "#334155" } }, x: { ticks: { color: "#94a3b8" }, grid: { display: false } } } }
+    })
+
+    setChartsLoaded(true)
   }
-
-  const overdue = filteredActions.filter(a => bucket(a) === "overdue")
-  const todayItems = filteredActions.filter(a => bucket(a) === "today")
-  const nextWeekItems = filteredActions.filter(a => bucket(a) === "nextweek")
-  const laterItems = filteredActions.filter(a => bucket(a) === "later")
-
-  const filteredPriorities = priorities.filter(p => filterQuarter === "all" || p.quarter_id === filterQuarter)
 
   function statusBadge(s) {
     const map = { "Complete":"badge-green","In Progress":"badge-blue","Not Started":"badge-gray","Blocked":"badge-red","On Hold":"badge-yellow" }
     return <span className={"badge " + (map[s]||"badge-gray")}>{s}</span>
   }
 
-  function ActionRow({ a }) {
-    const isOverdue = bucket(a) === "overdue"
-    const priority = priorities.find(p => p.id === a.priority_id)
-    return (
-      <tr className={isOverdue ? "overdue-row" : ""} style={{ cursor:"pointer" }} onClick={() => router.push("/priority/" + a.priority_id)}>
-        <td><span style={{ color: isOverdue ? "#ef4444" : "#cbd5e1" }}>{a.description}</span></td>
-        <td>{a.owner_name || <span style={{color:"#4a6080"}}>Unassigned</span>}</td>
-        <td><span style={{ color: isOverdue ? "#ef4444" : "#cbd5e1", fontWeight: isOverdue ? 600 : 400 }}>{a.due_date || "—"}</span></td>
-        <td>{statusBadge(a.status)}</td>
-        <td>
-          <div className="progress-bar" style={{width:80}}>
-            <div className="progress-fill" style={{width: a.completion_pct + "%", background: a.completion_pct === 100 ? "#10b981" : "#4a90d9"}} />
-          </div>
-          <span style={{fontSize:11,color:"#64748b",marginLeft:6}}>{a.completion_pct}%</span>
-        </td>
-        <td style={{fontSize:11,color:"#64748b"}}>{priority ? priority.title : "—"}</td>
-      </tr>
-    )
-  }
+  const today = new Date().toISOString().split("T")[0]
+  const pastDue = actionItems.filter(a => a.due_date && a.due_date < today && a.status !== "Complete").length
+  const dueToday = actionItems.filter(a => a.due_date === today && a.status !== "Complete").length
 
-  function ActionSection({ title, items, color }) {
-    if (items.length === 0) return null
-    return (
-      <div style={{marginBottom:24}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-          <span style={{fontSize:12,fontWeight:700,color,textTransform:"uppercase",letterSpacing:1}}>{title}</span>
-          <span className="badge" style={{background:"rgba(255,255,255,0.05)",color:"#94a3b8"}}>{items.length}</span>
-        </div>
-        <table><thead><tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th><th>Progress</th><th>Priority</th></tr></thead>
-          <tbody>{items.map(a => <ActionRow key={a.id} a={a} />)}</tbody>
-        </table>
-      </div>
-    )
-  }
+  const filteredActions = filterQuarter || filterUser
+    ? actionItems.filter(a => (!filterQuarter || (priorities.find(p => p.id === a.priority_id)?.quarter_id === filterQuarter)) && (!filterUser || a.owner_id === filterUser))
+    : actionItems
 
-  const totalComplete = priorities.filter(p => p.status === "Complete").length
-  const totalBlocked = actions.filter(a => a.status === "Blocked").length
-  const avgCompletion = priorities.length ? Math.round(priorities.reduce((s,p) => s + (p.overall_completion||0), 0) / priorities.length) : 0
+  const pastDueActions = filteredActions.filter(a => a.due_date && a.due_date < today && a.status !== "Complete")
+  const todayActions = filteredActions.filter(a => a.due_date === today && a.status !== "Complete")
+  const upcomingActions = filteredActions.filter(a => a.due_date && a.due_date > today && a.due_date <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0] && a.status !== "Complete")
 
-  if (loading) return <Layout><div style={{color:"#64748b",padding:40}}>Loading...</div></Layout>
+  const filteredPriorities = (!filterQuarter || filterQuarter === "all") 
+    ? priorities 
+    : priorities.filter(p => p.quarter_id === filterQuarter)
+
+  const totalPriorities = filteredPriorities.length
+  const avgCompletion = totalPriorities > 0 ? Math.round(filteredPriorities.reduce((s,p) => s + (p.overall_completion||0), 0) / totalPriorities) : 0
+  const totalActions = actionItems.length
+
+  if (loading) return <Layout><div style={{color:"#64748b",padding:40}}>Loading Dashboard...</div></Layout>
 
   return (
     <Layout>
       <div className="page-header">
-        <div>
-          <div className="page-title">Dashboard</div>
-          <div className="page-subtitle">Alpha Wireless Priority Tracker</div>
-        </div>
-        <button className="btn btn-primary" onClick={() => router.push("/priorities")}>+ Add Priority</button>
+        <div><div className="page-title">📊 Dashboard</div><div className="page-subtitle">Track your priorities and action items</div></div>
       </div>
 
-      <div className="stat-cards">
-        <div className="stat-card"><div className="stat-label">Total Priorities</div><div className="stat-value">{priorities.length}</div><div className="stat-sub">{totalComplete} complete</div></div>
-        <div className="stat-card"><div className="stat-label">Total Actions</div><div className="stat-value">{actions.length}</div><div className="stat-sub">{actions.filter(a=>a.status==="Complete").length} complete</div></div>
-        <div className="stat-card"><div className="stat-label">Avg Completion</div><div className="stat-value">{avgCompletion}%</div><div className="stat-sub">across all priorities</div></div>
-        <div className="stat-card"><div className="stat-label">Overdue Actions</div><div className="stat-value" style={{color: overdue.length > 0 ? "#ef4444":"#10b981"}}>{overdue.length}</div><div className="stat-sub">{totalBlocked} blocked</div></div>
+      <div className="filters" style={{marginBottom:24,display:"flex",gap:12}}>
+        <button className={activeTab === "overview" ? "btn btn-primary" : "btn btn-secondary"} onClick={() => setActiveTab("overview")}>Overview</button>
+        <button className={activeTab === "charts" ? "btn btn-primary" : "btn btn-secondary"} onClick={() => { setActiveTab("charts"); setTimeout(loadCharts, 100) }}>📈 Charts</button>
+        <button className={activeTab === "actions" ? "btn btn-primary" : "btn btn-secondary"} onClick={() => setActiveTab("actions")}>Action Items</button>
       </div>
 
-      <div className="filters">
-        <select value={filterQuarter} onChange={e => setFilterQuarter(e.target.value)}>
-          <option value="all">All Quarters</option>
-          {quarters.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}
-        </select>
-        <select value={filterUser} onChange={e => setFilterUser(e.target.value)}>
-          <option value="all">All Team Members</option>
-          {users.map(u => <option key={u.id} value={u.full_name}>{u.full_name}</option>)}
-        </select>
-      </div>
-
-      <div className="tabs">
-        <div className={"tab"+(activeTab==="priorities"?" active":"")} onClick={()=>setActiveTab("priorities")}>Priorities</div>
-        <div className={"tab"+(activeTab==="actions"?" active":"")} onClick={()=>setActiveTab("actions")}>
-          Action Items {overdue.length > 0 && <span className="badge badge-red" style={{marginLeft:6}}>{overdue.length} overdue</span>}
-        </div>
-      </div>
-
-      {activeTab === "priorities" && (
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Priorities ({filteredPriorities.length})</div>
+      {activeTab === "overview" && (
+        <>
+          <div className="stat-cards">
+            <div className="stat-card"><div className="stat-label">Total Priorities</div><div className="stat-value">{totalPriorities}</div></div>
+            <div className="stat-card"><div className="stat-label">Avg Progress</div><div className="stat-value">{avgCompletion}%</div></div>
+            <div className="stat-card"><div className="stat-label">Total Actions</div><div className="stat-value">{totalActions}</div></div>
+            <div className="stat-card" style={{border:"1px solid #ef4444"}}><div className="stat-label" style={{color:"#fca5a5"}}>Past Due</div><div className="stat-value" style={{color:"#ef4444"}}>{pastDue}</div></div>
           </div>
-          {filteredPriorities.length === 0 ? (
-            <div className="empty-state"><div className="empty-icon">📋</div><div>No priorities yet</div></div>
-          ) : (
-            <table>
-              <thead><tr><th>#</th><th>Priority</th><th>Owner</th><th>Quarter</th><th>Status</th><th>Progress</th><th></th></tr></thead>
-              <tbody>
-                {filteredPriorities.map(p => {
-                  const q = quarters.find(q => q.id === p.quarter_id)
-                  const u = users.find(u => u.id === p.owner_id)
-                  return (
-                    <tr key={p.id} style={{cursor:"pointer"}} onClick={() => router.push("/priority/"+p.id)}>
-                      <td style={{color:"#4a90d9",fontWeight:600}}>{p.priority_number}</td>
-                      <td style={{fontWeight:500,color:"#f1f5f9"}}>{p.title}</td>
-                      <td>{u ? u.full_name : <span style={{color:"#4a6080"}}>—</span>}</td>
-                      <td>{q ? <span className="badge badge-blue">{q.title}</span> : "—"}</td>
-                      <td>{statusBadge(p.status)}</td>
-                      <td>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <div className="progress-bar" style={{width:100}}><div className="progress-fill" style={{width:(p.overall_completion||0)+"%"}} /></div>
-                          <span style={{fontSize:12,color:"#64748b",minWidth:32}}>{p.overall_completion||0}%</span>
-                        </div>
-                      </td>
-                      <td><span className="btn btn-secondary btn-sm">View →</span></td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
+
+          <div className="card" style={{marginBottom:16}}>
+            <div className="card-header"><div className="card-title">Priorities</div></div>
+            {filteredPriorities.length === 0 ? <div style={{color:"#64748b",padding:12}}>No priorities found</div> : (
+              <table><thead><tr><th>#</th><th>Priority</th><th>Quarter</th><th>Status</th><th>Progress</th><th></th></tr></thead>
+                <tbody>
+                  {filteredPriorities.slice(0,10).map(p => {
+                    const q = quarters.find(q => q.id === p.quarter_id)
+                    return (
+                      <tr key={p.id}>
+                        <td style={{color:"#4a90d9",fontWeight:600}}>{p.priority_number}</td>
+                        <td style={{fontWeight:500,color:"#f1f5f9",cursor:"pointer"}} onClick={() => router.push("/priority/" + p.id)}>{p.title}</td>
+                        <td>{q ? <span className="badge badge-blue">{q.title}</span> : "—"}</td>
+                        <td>{statusBadge(p.status)}</td>
+                        <td><div style={{display:"flex",alignItems:"center",gap:8}}><div className="progress-bar" style={{width:80}}><div className="progress-fill" style={{width:(p.overall_completion||0)+"%"}} /></div><span style={{fontSize:12,color:"#64748b"}}>{p.overall_completion||0}%</span></div></td>
+                        <td><button className="btn btn-secondary btn-sm" onClick={() => router.push("/priority/" + p.id)}>View</button></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </>
+      )}
+
+      {activeTab === "charts" && (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:24}}>
+          <div className="card"><canvas id="priorityStatusChart"></canvas></div>
+          <div className="card"><canvas id="actionStatusChart"></canvas></div>
+          <div className="card"><canvas id="quarterChart"></canvas></div>
+          <div className="card"><canvas id="revenueRegionChart"></canvas></div>
         </div>
       )}
 
       {activeTab === "actions" && (
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">All Action Items</div>
-            <span style={{fontSize:12,color:"#64748b"}}>{filteredActions.length} open actions</span>
+        <div>
+          <div className="filters" style={{marginBottom:16}}>
+            <select value={filterQuarter} onChange={e => setFilterQuarter(e.target.value)}>
+              <option value="">All Quarters</option>
+              {quarters.map(q => <option key={q.id} value={q.id}>{q.title}</option>)}
+            </select>
+            <select value={filterUser} onChange={e => setFilterUser(e.target.value)}>
+              <option value="">All Owners</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+            </select>
           </div>
-          {filteredActions.length === 0 ? (
-            <div className="empty-state"><div className="empty-icon">✅</div><div>All caught up!</div></div>
-          ) : (
-            <>
-              <ActionSection title="⚠ Past Due" items={overdue} color="#ef4444" />
-              <ActionSection title="📌 Today" items={todayItems} color="#f59e0b" />
-              <ActionSection title="📅 Next 7 Days" items={nextWeekItems} color="#4a90d9" />
-              <ActionSection title="🗓 Later" items={laterItems} color="#64748b" />
-            </>
+
+          {pastDueActions.length > 0 && (
+            <div className="card" style={{marginBottom:16,borderLeft:"4px solid #ef4444"}}>
+              <div style={{fontSize:14,fontWeight:600,color:"#fca5a5",marginBottom:12}}>⚠️ Past Due ({pastDueActions.length})</div>
+              {pastDueActions.map(a => {
+                const p = priorities.find(p => p.id === a.priority_id)
+                return <div key={a.id} style={{padding:"8px 0",borderBottom:"1px solid #334155",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div><span style={{color:"#f1f5f9"}}>{a.description}</span><span style={{fontSize:12,color:"#64748b",marginLeft:8}}>due {a.due_date}</span></div>
+                  <button className="btn btn-secondary btn-sm" onClick={() => p && router.push("/priority/" + p.id)}>View</button>
+                </div>
+              })}
+            </div>
           )}
+
+          {todayActions.length > 0 && (
+            <div className="card" style={{marginBottom:16,borderLeft:"4px solid #f59e0b"}}>
+              <div style={{fontSize:14,fontWeight:600,color:"#fcd34d",marginBottom:12}}>📅 Due Today ({todayActions.length})</div>
+              {todayActions.map(a => {
+                const p = priorities.find(p => p.id === a.priority_id)
+                return <div key={a.id} style={{padding:"8px 0",borderBottom:"1px solid #334155",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div><span style={{color:"#f1f5f9"}}>{a.description}</span></div>
+                  <button className="btn btn-secondary btn-sm" onClick={() => p && router.push("/priority/" + p.id)}>View</button>
+                </div>
+              })}
+            </div>
+          )}
+
+          <div className="card">
+            <div style={{fontSize:14,fontWeight:600,color:"#64748b",marginBottom:12}}>All Action Items</div>
+            {filteredActions.length === 0 ? <div style={{color:"#64748b"}}>No action items</div> : (
+              <table>
+                <thead><tr><th>Action Item</th><th>Priority</th><th>Owner</th><th>Due Date</th><th>Status</th><th>Progress</th></tr></thead>
+                <tbody>
+                  {filteredActions.map(a => {
+                    const p = priorities.find(p => p.id === a.priority_id)
+                    const u = users.find(u => u.id === a.owner_id)
+                    return (
+                      <tr key={a.id}>
+                        <td style={{fontWeight:500,color:"#f1f5f9"}}>{a.description}</td>
+                        <td>{p ? <span style={{color:"#4a90d9",cursor:"pointer"}} onClick={() => router.push("/priority/" + p.id)}>{p.title}</span> : "—"}</td>
+                        <td>{u ? u.full_name : "—"}</td>
+                        <td style={{color:a.due_date && a.due_date < today && a.status !== "Complete" ? "#ef4444" : "#f1f5f9"}}>{a.due_date || "—"}</td>
+                        <td>{statusBadge(a.status)}</td>
+                        <td>{a.completion_percentage || 0}%</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       )}
     </Layout>
