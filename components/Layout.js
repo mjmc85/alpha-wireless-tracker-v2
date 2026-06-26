@@ -9,13 +9,13 @@ export default function Layout({ children }) {
   const [overdueCount, setOverdueCount] = useState(0)
 
   const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: "📊" },
-    { href: "/priorities", label: "Priorities", icon: "📋" },
-    {href: "/calendar", label: "Calendar", icon: "📅"},
-    { href: "/quarters", label: "Quarters", icon: "📅" },
-    { href: "/users", label: "Team", icon: "👥" },
-    { href: "/annual", label: "Annual", icon: "🎯" },
-  ]
+  { href: "/dashboard", label: "Dashboard", icon: "📊" },
+  { href: "/priorities", label: "Priorities", icon: "📋" },
+  { href: "/calendar", label: "Calendar", icon: "📅" },
+  { href: "/quarters", label: "Quarters", icon: "🗓️" },
+  { href: "/users", label: "Team", icon: "👥" },
+  { href: "/annual", label: "Annual", icon: "🎯" },
+ ]
 
   useEffect(() => {
     loadOverdueCount()
