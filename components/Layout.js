@@ -1,11 +1,12 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/router"
+import { supabase } from "../lib/supabase"
 
 export default function Layout({ children }) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [overdueCount, setOverdueCount] = useState(0)
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
@@ -14,6 +15,22 @@ export default function Layout({ children }) {
     { href: "/users", label: "Team", icon: "👥" },
     { href: "/annual", label: "Annual", icon: "🎯" },
   ]
+
+  useEffect(() => {
+    loadOverdueCount()
+    const interval = setInterval(loadOverdueCount, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  async function loadOverdueCount() {
+    const today = new Date().toISOString().split("T")[0]
+    const { data } = await supabase
+      .from("action_items")
+      .select("id")
+      .lt("due_date", today)
+      .neq("status", "Complete")
+    setOverdueCount(data?.length || 0)
+  }
 
   function handleSearch(e) {
     e.preventDefault()
@@ -52,10 +69,69 @@ export default function Layout({ children }) {
                 </Link>
               )
             })}
+            <Link 
+              href="/overdue" 
+              style={{ 
+                padding: "8px 12px", 
+                borderRadius: 6, 
+                textDecoration: "none", 
+                color: router.pathname === "/overdue" ? "#f1f5f9" : overdueCount > 0 ? "#fca5a5" : "#94a3b8", 
+                background: router.pathname === "/overdue" ? "#334155" : overdueCount > 0 ? "rgba(239,68,68,0.2)" : "transparent", 
+                fontSize: 14, 
+                fontWeight: overdueCount > 0 ? 600 : 400, 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 6,
+                border: overdueCount > 0 ? "1px solid #ef4444" : "none"
+              }}
+            >
+              <span>⚠️</span>
+              <span>Overdue</span>
+              {overdueCount > 0 && (
+                <span style={{ 
+                  background: "#ef4444", 
+                  color: "#fff", 
+                  fontSize: 11, 
+                  fontWeight: 700, 
+                  padding: "2px 6px", 
+                  borderRadius: 10,
+                  marginLeft: 4
+                }}>{overdueCount}</span>
+              )}
+            </Link>
             <button onClick={logout} style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, cursor: "pointer" }}>🚪 Logout</button>
           </div>
         </div>
       </nav>
+      
+      {/* Overdue Alert Banner */}
+      {overdueCount > 0 && router.pathname !== "/overdue" && (
+        <div style={{ 
+          background: "linear-gradient(90deg, rgba(239,68,68,0.2), rgba(239,68,68,0.1))", 
+          borderBottom: "1px solid #ef4444", 
+          padding: "12px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 12
+        }}>
+          <span style={{ color: "#fca5a5", fontSize: 14 }}>⚠️ You have {overdueCount} overdue action item{overdueCount !== 1 ? "s" : ""}</span>
+          <button 
+            onClick={() => router.push("/overdue")} 
+            style={{ 
+              background: "#ef4444", 
+              color: "#fff", 
+              border: "none", 
+              padding: "6px 12px", 
+              borderRadius: 6, 
+              fontSize: 13, 
+              fontWeight: 600, 
+              cursor: "pointer" 
+            }}
+          >View Overdue Items</button>
+        </div>
+      )}
+      
       <main style={{ maxWidth: 1400, margin: "0 auto", padding: 24 }}>{children}</main>
     </div>
   )
