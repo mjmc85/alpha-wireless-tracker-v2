@@ -7,15 +7,21 @@ export default function Layout({ children }) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [overdueCount, setOverdueCount] = useState(0)
+  const [showOverdueBanner, setShowOverdueBanner] = useState(true)
+  const [toast, setToast] = useState(null)
+  const [adminOpen, setAdminOpen] = useState(false)
 
   const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/priorities", label: "Priorities", icon: "📋" },
-  { href: "/calendar", label: "Calendar", icon: "📅" },
-  { href: "/quarters", label: "Quarters", icon: "🗓️" },
-  { href: "/users", label: "Team", icon: "👥" },
-  { href: "/annual", label: "Annual", icon: "🎯" },
- ]
+    { href: "/dashboard", label: "Dashboard", icon: "📊" },
+    { href: "/priorities", label: "Priorities", icon: "📋" },
+    { href: "/calendar", label: "Calendar", icon: "📅" },
+    { href: "/annual", label: "Annual", icon: "🎯" },
+  ]
+
+  const adminItems = [
+    { href: "/quarters", label: "Quarters", icon: "🗓️" },
+    { href: "/users", label: "Team", icon: "👥" },
+  ]
 
   useEffect(() => {
     loadOverdueCount()
@@ -25,11 +31,7 @@ export default function Layout({ children }) {
 
   async function loadOverdueCount() {
     const today = new Date().toISOString().split("T")[0]
-    const { data } = await supabase
-      .from("action_items")
-      .select("id")
-      .lt("due_date", today)
-      .neq("status", "Complete")
+    const { data } = await supabase.from("action_items").select("id").lt("due_date", today).neq("status", "Complete")
     setOverdueCount(data?.length || 0)
   }
 
@@ -46,6 +48,19 @@ export default function Layout({ children }) {
     router.push("/")
   }
 
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    function handleToast(e) { setToast(e.detail) }
+    window.addEventListener("showToast", handleToast)
+    return () => window.removeEventListener("showToast", handleToast)
+  }, [])
+
   return (
     <div style={{ minHeight: "100vh", background: "#0f172a" }}>
       <nav style={{ background: "#1e293b", borderBottom: "1px solid #334155", padding: "0 24px", position: "sticky", top: 0, zIndex: 50 }}>
@@ -54,12 +69,14 @@ export default function Layout({ children }) {
             <div style={{ width: 36, height: 36, background: "linear-gradient(135deg, #3b82f6, #1d4ed8)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📡</div>
             <span style={{ fontWeight: 700, fontSize: 18, color: "#f1f5f9" }}>Alpha Wireless</span>
           </Link>
-          <form onSubmit={handleSearch} style={{ flex: 1, maxWidth: 400, margin: "0 32px", display: "flex" }}>
+
+          <form onSubmit={handleSearch} style={{ flex: 1, maxWidth: 400, margin: "0 24px", display: "flex" }}>
             <div style={{ position: "relative", width: "100%" }}>
-              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search... (press Enter)" style={{ width: "100%", padding: "8px 12px 8px 36px", borderRadius: 8, border: "1px solid #334155", background: "#0f172a", color: "#f1f5f9", fontSize: 14 }} />
-              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" }}>🔍</span>
+              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search... (press Enter)" style={{ width: "100%", padding: "10px 12px 10px 40px", borderRadius: 8, border: "1px solid #334155", background: "#0f172a", color: "#f1f5f9", fontSize: 14 }} />
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: 16 }}>🔍</span>
             </div>
           </form>
+
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             {navItems.map(item => {
               const isActive = router.pathname === item.href || router.pathname.startsWith(item.href + "/")
@@ -70,70 +87,55 @@ export default function Layout({ children }) {
                 </Link>
               )
             })}
-            <Link 
-              href="/overdue" 
-              style={{ 
-                padding: "8px 12px", 
-                borderRadius: 6, 
-                textDecoration: "none", 
-                color: router.pathname === "/overdue" ? "#f1f5f9" : overdueCount > 0 ? "#fca5a5" : "#94a3b8", 
-                background: router.pathname === "/overdue" ? "#334155" : overdueCount > 0 ? "rgba(239,68,68,0.2)" : "transparent", 
-                fontSize: 14, 
-                fontWeight: overdueCount > 0 ? 600 : 400, 
-                display: "flex", 
-                alignItems: "center", 
-                gap: 6,
-                border: overdueCount > 0 ? "1px solid #ef4444" : "none"
-              }}
-            >
+
+            <Link href="/overdue" style={{ padding: "8px 12px", borderRadius: 6, textDecoration: "none", color: router.pathname === "/overdue" ? "#f1f5f9" : overdueCount > 0 ? "#fca5a5" : "#94a3b8", background: router.pathname === "/overdue" ? "#334155" : overdueCount > 0 ? "rgba(239,68,68,0.15)" : "transparent", fontSize: 14, fontWeight: overdueCount > 0 ? 600 : 400, display: "flex", alignItems: "center", gap: 6, border: overdueCount > 0 ? "1px solid rgba(239,68,68,0.3)" : "none" }}>
               <span>⚠️</span>
               <span>Overdue</span>
-              {overdueCount > 0 && (
-                <span style={{ 
-                  background: "#ef4444", 
-                  color: "#fff", 
-                  fontSize: 11, 
-                  fontWeight: 700, 
-                  padding: "2px 6px", 
-                  borderRadius: 10,
-                  marginLeft: 4
-                }}>{overdueCount}</span>
-              )}
+              {overdueCount > 0 && <span style={{ background: "#ef4444", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 6px", borderRadius: 10, marginLeft: 2 }}>{overdueCount}</span>}
             </Link>
+
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setAdminOpen(!adminOpen)} style={{ padding: "8px 12px", borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>⚙️ Admin ▾</button>
+              {adminOpen && (
+                <div style={{ position: "absolute", top: "100%", right: 0, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: 8, minWidth: 150, boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+                  {adminItems.map(item => (
+                    <Link key={item.href} href={item.href} onClick={() => setAdminOpen(false)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", color: "#94a3b8", textDecoration: "none", borderRadius: 6 }}>{item.icon} {item.label}</Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button onClick={logout} style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, cursor: "pointer" }}>🚪 Logout</button>
           </div>
         </div>
       </nav>
       
-      {/* Overdue Alert Banner */}
-      {overdueCount > 0 && router.pathname !== "/overdue" && (
-        <div style={{ 
-          background: "linear-gradient(90deg, rgba(239,68,68,0.2), rgba(239,68,68,0.1))", 
-          borderBottom: "1px solid #ef4444", 
-          padding: "12px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 12
-        }}>
+      {overdueCount > 0 && router.pathname !== "/overdue" && showOverdueBanner && (
+        <div style={{ background: "linear-gradient(90deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05))", borderBottom: "1px solid rgba(239,68,68,0.3)", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <span style={{ color: "#fca5a5", fontSize: 14 }}>⚠️ You have {overdueCount} overdue action item{overdueCount !== 1 ? "s" : ""}</span>
-          <button 
-            onClick={() => router.push("/overdue")} 
-            style={{ 
-              background: "#ef4444", 
-              color: "#fff", 
-              border: "none", 
-              padding: "6px 12px", 
-              borderRadius: 6, 
-              fontSize: 13, 
-              fontWeight: 600, 
-              cursor: "pointer" 
-            }}
-          >View Overdue Items</button>
+          <button onClick={() => router.push("/overdue")} style={{ background: "#ef4444", color: "#fff", border: "none", padding: "6px 12px", borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>View</button>
+          <button onClick={() => setShowOverdueBanner(false)} style={{ background: "transparent", color: "#94a3b8", border: "none", padding: "6px 8px", fontSize: 18, cursor: "pointer" }}>×</button>
+        </div>
+      )}
+      
+      {toast && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, background: toast.type === "success" ? "#10b981" : toast.type === "error" ? "#ef4444" : "#3b82f6", color: "#fff", padding: "12px 20px", borderRadius: 8, boxShadow: "0 10px 40px rgba(0,0,0,0.3)", display: "flex", alignItems: "center", gap: 12, zIndex: 100 }}>
+          <span style={{ fontSize: 18 }}>{toast.type === "success" ? "✅" : toast.type === "error" ? "❌" : "ℹ️"}</span>
+          <span style={{ fontSize: 14, fontWeight: 500 }}>{toast.message}</span>
         </div>
       )}
       
       <main style={{ maxWidth: 1400, margin: "0 auto", padding: 24 }}>{children}</main>
+
+      <style jsx global>{`
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @media (max-width: 768px) { .nav-desktop { display: none !important; } table { display: block; overflow-x: auto; white-space: nowrap; } }
+        button, a, input, select, textarea { transition: all 0.2s ease; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }
