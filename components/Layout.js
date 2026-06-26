@@ -1,46 +1,62 @@
-import { useRouter } from 'next/router'
+import { useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/router"
 
 export default function Layout({ children }) {
   const router = useRouter()
-  const nav = [
-    { section: 'Main' },
-    { href: '/dashboard', icon: '📊', label: 'Dashboard' },
-    { href: '/annual', icon: '🎯', label: 'Annual Priorities' },
-    { section: 'Planning' },
-    { href: '/priorities', icon: '📋', label: 'Priorities' },
-    { href: '/quarters', icon: '📅', label: 'Quarters' },
-    { href: '/reviews', icon: '🔍', label: 'Quarterly Reviews' },
-    { section: 'Meetings' },
-    { href: '/meetings', icon: '🤝', label: 'Meetings' },
-    { section: 'Team' },
-    { href: '/users', icon: '👥', label: 'Team Members' },
+  const [searchQuery, setSearchQuery] = useState("")
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard", icon: "📊" },
+    { href: "/priorities", label: "Priorities", icon: "📋" },
+    { href: "/quarters", label: "Quarters", icon: "📅" },
+    { href: "/users", label: "Team", icon: "👥" },
+    { href: "/annual", label: "Annual", icon: "🎯" },
   ]
+
+  function handleSearch(e) {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      router.push("/search?q=" + encodeURIComponent(searchQuery.trim()))
+      setSearchQuery("")
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem("aw_auth")
+    router.push("/")
+  }
+
   return (
-    <div className="layout">
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <h2>Alpha Wireless</h2>
-          <p>Priority Tracker v2</p>
+    <div style={{ minHeight: "100vh", background: "#0f172a" }}>
+      <nav style={{ background: "#1e293b", borderBottom: "1px solid #334155", padding: "0 24px", position: "sticky", top: 0, zIndex: 50 }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
+          <Link href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
+            <div style={{ width: 36, height: 36, background: "linear-gradient(135deg, #3b82f6, #1d4ed8)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📡</div>
+            <span style={{ fontWeight: 700, fontSize: 18, color: "#f1f5f9" }}>Alpha Wireless</span>
+          </Link>
+          <form onSubmit={handleSearch} style={{ flex: 1, maxWidth: 400, margin: "0 32px", display: "flex" }}>
+            <div style={{ position: "relative", width: "100%" }}>
+              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search... (press Enter)" style={{ width: "100%", padding: "8px 12px 8px 36px", borderRadius: 8, border: "1px solid #334155", background: "#0f172a", color: "#f1f5f9", fontSize: 14 }} />
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#64748b" }}>🔍</span>
+            </div>
+          </form>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            {navItems.map(item => {
+              const isActive = router.pathname === item.href || router.pathname.startsWith(item.href + "/")
+              return (
+                <Link key={item.href} href={item.href} style={{ padding: "8px 12px", borderRadius: 6, textDecoration: "none", color: isActive ? "#f1f5f9" : "#94a3b8", background: isActive ? "#334155" : "transparent", fontSize: 14, fontWeight: isActive ? 600 : 400, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>{item.icon}</span>
+                  <span>{item.label}</span>
+                </Link>
+              )
+            })}
+            <button onClick={logout} style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, cursor: "pointer" }}>🚪 Logout</button>
+          </div>
         </div>
-        <nav className="sidebar-nav">
-          {nav.map((item, i) =>
-            item.section ? (
-              <div key={i} className="nav-section">{item.section}</div>
-            ) : (
-              <div
-                key={i}
-                className={"nav-item" + (router.pathname === item.href || router.pathname.startsWith(item.href + "/") ? " active" : "")}
-                onClick={() => router.push(item.href)}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                <span>{item.label}</span>
-              </div>
-            )
-          )}
-        </nav>
-        <div className="sidebar-footer">Alpha Wireless © 2026</div>
-      </aside>
-      <main className="main-content">{children}</main>
+      </nav>
+      <main style={{ maxWidth: 1400, margin: "0 auto", padding: 24 }}>{children}</main>
     </div>
   )
 }
