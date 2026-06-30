@@ -1,0 +1,34 @@
+import { supabase } from "../../lib/supabase"
+
+export default async function handler(req, res) {
+  try {
+    // Ping the database with a simple query
+    const { data, error } = await supabase
+      .from("quarters")
+      .select("id")
+      .limit(1)
+    
+    if (error) {
+      return res.status(200).json({ 
+        status: "ok", 
+        message: "Keep-alive ping sent (query error ignored)",
+        timestamp: new Date().toISOString(),
+        error: error.message 
+      })
+    }
+    
+    return res.status(200).json({ 
+      status: "ok", 
+      message: "Database pinged successfully",
+      timestamp: new Date().toISOString(),
+      records: data?.length || 0
+    })
+  } catch (err) {
+    return res.status(200).json({ 
+      status: "ok", 
+      message: "Keep-alive endpoint reached",
+      timestamp: new Date().toISOString(),
+      error: err.message 
+    })
+  }
+}
