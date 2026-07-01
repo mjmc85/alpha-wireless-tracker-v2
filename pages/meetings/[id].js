@@ -71,6 +71,14 @@ export default function MeetingDetail() {
     setSaving(false)
   }
 
+  async function reopenMeeting() {
+    setSaving(true)
+    await supabase.from("meetings").update({ status:"Scheduled" }).eq("id", id)
+    setMeeting({ ...meeting, status:"Scheduled" })
+    window.dispatchEvent(new CustomEvent("showToast", { detail: { type:"success", message:"Meeting reopened!" } }))
+    setSaving(false)
+  }
+
   function statusBadge(s) {
     const map = { "Complete":"badge-green","In Progress":"badge-blue","Not Started":"badge-gray","Blocked":"badge-red","On Hold":"badge-yellow" }
     return <span className={"badge " + (map[s]||"badge-gray")}>{s}</span>
@@ -95,7 +103,9 @@ export default function MeetingDetail() {
           {meeting.teams_link && (
             <a href={meeting.teams_link} target="_blank" rel="noopener noreferrer" className="btn btn-primary">🔗 Join Teams</a>
           )}
-          {meeting.status !== "Completed" && (
+          {meeting.status === "Completed" ? (
+            <button className="btn btn-secondary" onClick={reopenMeeting} disabled={saving}>🔄 Reopen Meeting</button>
+          ) : (
             <button className="btn btn-secondary" onClick={completeMeeting} disabled={saving}>✅ Complete Meeting</button>
           )}
         </div>
