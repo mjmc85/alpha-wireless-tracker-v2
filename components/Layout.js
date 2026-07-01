@@ -14,6 +14,7 @@ export default function Layout({ children }) {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
     { href: "/priorities", label: "Priorities", icon: "📋" },
+    { href: "/meetings", label: "Meetings", icon: "🗓️" },
     { href: "/calendar", label: "Calendar", icon: "📅" },
     { href: "/annual", label: "Annual", icon: "🎯" },
   ]
