@@ -35,6 +35,31 @@ export default function PriorityDetail() {
     setLoading(false)
   }
 
+  // NEW: Recalculate the priority's overall completion based on active action items
+  async function recalcPriorityCompletion() {
+    const { data: items } = await supabase
+      .from("action_items")
+      .select("completion_percentage, archived")
+      .eq("priority_id", id)
+
+    if (!items || items.length === 0) {
+      await supabase.from("priorities").update({ overall_completion: 0 }).eq("id", id)
+      return
+    }
+
+    const activeItems = items.filter(i => !i.archived)
+    if (activeItems.length === 0) {
+      await supabase.from("priorities").update({ overall_completion: 0 }).eq("id", id)
+      return
+    }
+
+    const avg = Math.round(
+      activeItems.reduce((sum, item) => sum + (item.completion_percentage || 0), 0) / activeItems.length
+    )
+
+    await supabase.from("priorities").update({ overall_completion: avg }).eq("id", id)
+  }
+
   function openAdd() {
     setEditing(null)
     setForm({ description:"", owner_id:"", status:"Not Started", due_date:"", completion_percentage:0 })
@@ -62,6 +87,7 @@ export default function PriorityDetail() {
     window.dispatchEvent(new CustomEvent("showToast", { detail: { type:"success", message: editing ? "Action updated!" : "Action added!" } }))
     setShowModal(false)
     setSaving(false)
+    await recalcPriorityCompletion()
     loadData()
   }
 
@@ -69,12 +95,14 @@ export default function PriorityDetail() {
     if (!confirm("Delete this action item?")) return
     await supabase.from("action_items").delete().eq("id", actionId)
     window.dispatchEvent(new CustomEvent("showToast", { detail: { type:"success", message:"Action deleted!" } }))
+    await recalcPriorityCompletion()
     loadData()
   }
 
   async function archiveAction(actionId, archived) {
     await supabase.from("action_items").update({ archived: !archived }).eq("id", actionId)
     window.dispatchEvent(new CustomEvent("showToast", { detail: { type:"success", message: archived ? "Action restored!" : "Action archived!" } }))
+    await recalcPriorityCompletion()
     loadData()
   }
 
@@ -196,9 +224,9 @@ export default function PriorityDetail() {
                     >
                       <td style={{color:"#64748b",fontSize:18,textAlign:"center",cursor:"grab"}}>⠿</td>
                       <td style={{fontWeight:500,color:"#f1f5f9"}}>{item.description}</td>
-                      <td>{owner ? owner.full_name : "—"}</td>
+                      <td>{owner ? owner.full_name : "-"}</td>
                       <td>{statusBadge(item.status)}</td>
-                      <td>{item.due_date || "—"}</td>
+                      <td>{item.due_date || "-"}</td>
                       <td>
                         <div style={{display:"flex",alignItems:"center",gap:8}}>
                           <div className="progress-bar" style={{width:60}}><div className="progress-fill" style={{width:(item.completion_percentage||0)+"%"}} /></div>
@@ -244,9 +272,9 @@ export default function PriorityDetail() {
                   return (
                     <tr key={item.id} style={{opacity:0.7}}>
                       <td style={{fontWeight:500,color:"#94a3b8"}}>{item.description}</td>
-                      <td>{owner ? owner.full_name : "—"}</td>
+                      <td>{owner ? owner.full_name : "-"}</td>
                       <td>{statusBadge(item.status)}</td>
-                      <td>{item.due_date || "—"}</td>
+                      <td>{item.due_date || "-"}</td>
                       <td>{item.completion_percentage||0}%</td>
                       <td>
                         <div style={{display:"flex",gap:6}}>
