@@ -48,7 +48,6 @@ export default function PriorityDetail() {
   async function recalcPriorityCompletion() {
     const { data: items } = await supabase
       .from("action_items")
-      // include status so we can filter out "Not Started"
       .select("completion_percentage, archived, status")
       .eq("priority_id", id)
 
@@ -57,9 +56,9 @@ export default function PriorityDetail() {
       return
     }
 
-    // only those not archived and not "Not Started"
+    // Only exclude "Not Started" — Blocked, On Hold, In Progress, Complete all count
     const relevant = items.filter(
-      i => !i.archived && i.status !== "Not Started"
+      i => !i.archived && i.status && i.status !== "Not Started"
     )
     if (relevant.length === 0) {
       await supabase.from("priorities").update({ overall_completion: 0 }).eq("id", id)
