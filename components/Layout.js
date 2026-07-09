@@ -111,12 +111,12 @@ export default function Layout({ children }) {
               )}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8, padding: "8px 12px", borderRadius: 6, background: "#0f172a", border: "1px solid #334155" }}>
+            <Link href="/settings" style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8, padding: "8px 12px", borderRadius: 6, background: "#0f172a", border: "1px solid #334155", textDecoration: "none", color: router.pathname === "/settings" ? "#f1f5f9" : "#cbd5e1", fontSize: 13, fontWeight: 500 }}>
               <span style={{ fontSize: 14 }}>👤</span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: "#cbd5e1" }}>{currentUserName}</span>
-            </div>
+              <span>{currentUserName}</span>
+            </Link>
 
-            <button onClick={logout} style={{ marginLeft: 4, padding: "8px 12px", borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, cursor: "pointer" }}>🚪 Logout</button>
+            <button onClick={logout} style={{ marginLeft: 4, padding: "8px 12px", borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, cursor: "pointer" }}>🚪</button>
           </div>
         </div>
       </nav>
