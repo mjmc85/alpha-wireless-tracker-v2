@@ -15,6 +15,7 @@ export default function Layout({ children }) {
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
     { href: "/priorities", label: "Priorities", icon: "📋" },
     { href: "/meetings", label: "Meetings", icon: "🗓️" },
+    { href: "/weekly-checkin", label: "Check-in", icon: "📝" },
     { href: "/calendar", label: "Calendar", icon: "📅" },
     { href: "/annual", label: "Annual", icon: "🎯" },
   ]
