@@ -14,12 +14,11 @@ export default function Login() {
     setError("")
     setLoading(true)
 
-    const trimmedUser = username.trim().toLowerCase()
-    const trimmedPass = password.trim()
+    const inputUser = username.trim()
+    const inputPass = password.trim()
 
     // --- Admin login (backwards compatible) ---
-    // Works if username is "admin" or blank, and password is the master password
-    if ((trimmedUser === "admin" || trimmedUser === "") && trimmedPass === "alpha2026") {
+    if ((inputUser.toLowerCase() === "admin" || inputUser === "") && inputPass === "alpha2026") {
       localStorage.setItem("aw_auth", "true")
       localStorage.setItem("aw_user_id", "admin")
       localStorage.setItem("aw_user_name", "Admin")
@@ -27,17 +26,18 @@ export default function Login() {
       return
     }
 
-    // --- Per-user login ---
-    if (!trimmedUser) {
+    // --- Per-user login (case-insensitive) ---
+    if (!inputUser) {
       setError("Please enter your username.")
       setLoading(false)
       return
     }
 
+    // Use ilike for case-insensitive match
     const { data, error: queryError } = await supabase
       .from("users")
       .select("id, full_name, username, password")
-      .eq("username", trimmedUser)
+      .ilike("username", inputUser)
       .single()
 
     if (queryError || !data) {
@@ -46,13 +46,13 @@ export default function Login() {
       return
     }
 
-    if (data.password !== trimmedPass) {
+    if (data.password !== inputPass) {
       setError("Incorrect password. Please try again.")
       setLoading(false)
       return
     }
 
-    // --- Success: store auth + user info ---
+    // --- Success ---
     localStorage.setItem("aw_auth", "true")
     localStorage.setItem("aw_user_id", data.id)
     localStorage.setItem("aw_user_name", data.full_name)
