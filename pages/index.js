@@ -1,19 +1,62 @@
 import { useState } from "react"
 import { useRouter } from "next/router"
+import { supabase } from "../lib/supabase"
 
 export default function Login() {
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
-    if (password === "alpha2026") {
+    setError("")
+    setLoading(true)
+
+    const trimmedUser = username.trim().toLowerCase()
+    const trimmedPass = password.trim()
+
+    // --- Admin login (backwards compatible) ---
+    // Works if username is "admin" or blank, and password is the master password
+    if ((trimmedUser === "admin" || trimmedUser === "") && trimmedPass === "alpha2026") {
       localStorage.setItem("aw_auth", "true")
+      localStorage.setItem("aw_user_id", "admin")
+      localStorage.setItem("aw_user_name", "Admin")
       router.push("/dashboard")
-    } else {
-      setError("Incorrect password. Please try again.")
+      return
     }
+
+    // --- Per-user login ---
+    if (!trimmedUser) {
+      setError("Please enter your username.")
+      setLoading(false)
+      return
+    }
+
+    const { data, error: queryError } = await supabase
+      .from("users")
+      .select("id, full_name, username, password")
+      .eq("username", trimmedUser)
+      .single()
+
+    if (queryError || !data) {
+      setError("Username not found. Check with your team admin.")
+      setLoading(false)
+      return
+    }
+
+    if (data.password !== trimmedPass) {
+      setError("Incorrect password. Please try again.")
+      setLoading(false)
+      return
+    }
+
+    // --- Success: store auth + user info ---
+    localStorage.setItem("aw_auth", "true")
+    localStorage.setItem("aw_user_id", data.id)
+    localStorage.setItem("aw_user_name", data.full_name)
+    router.push("/dashboard")
   }
 
   return (
@@ -24,11 +67,30 @@ export default function Login() {
         <p style={{ color:"#64748b", fontSize:"14px", marginBottom:"32px" }}>Priority Tracker v2</p>
         <form onSubmit={handleLogin}>
           <div className="form-group">
-            <input type="password" placeholder="Enter password" value={password} onChange={e => setPassword(e.target.value)} />
+            <input
+              type="text"
+              placeholder="Username (or leave blank for admin)"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              style={{ marginBottom: 12 }}
+            />
+          </div>
+          <div className="form-group">
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
           </div>
           {error && <div className="alert alert-error">{error}</div>}
-          <button type="submit" className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px" }}>Sign In</button>
+          <button type="submit" className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px", marginTop: 8 }} disabled={loading}>
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
         </form>
+        <div style={{ marginTop: 24, fontSize: 12, color: "#475569" }}>
+          Admin? Leave username blank and use the master password.
+        </div>
       </div>
     </div>
   )
