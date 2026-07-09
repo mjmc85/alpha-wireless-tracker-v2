@@ -11,6 +11,7 @@ export default function Layout({ children }) {
   const [toast, setToast] = useState(null)
   const [adminOpen, setAdminOpen] = useState(false)
   const [currentUserName, setCurrentUserName] = useState("")
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
@@ -27,7 +28,9 @@ export default function Layout({ children }) {
   ]
 
   useEffect(() => {
+    const id = localStorage.getItem("aw_user_id")
     setCurrentUserName(localStorage.getItem("aw_user_name") || "Admin")
+    setIsAdmin(id === "admin")
     loadOverdueCount()
     const interval = setInterval(loadOverdueCount, 60000)
     return () => clearInterval(interval)
@@ -100,16 +103,18 @@ export default function Layout({ children }) {
               {overdueCount > 0 && <span style={{ background: "#ef4444", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 6px", borderRadius: 10, marginLeft: 2 }}>{overdueCount}</span>}
             </Link>
 
-            <div style={{ position: "relative" }}>
-              <button onClick={() => setAdminOpen(!adminOpen)} style={{ padding: "8px 12px", borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>⚙️ Admin ▾</button>
-              {adminOpen && (
-                <div style={{ position: "absolute", top: "100%", right: 0, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: 8, minWidth: 150, boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
-                  {adminItems.map(item => (
-                    <Link key={item.href} href={item.href} onClick={() => setAdminOpen(false)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", color: "#94a3b8", textDecoration: "none", borderRadius: 6 }}>{item.icon} {item.label}</Link>
-                  ))}
-                </div>
-              )}
-            </div>
+            {isAdmin && (
+              <div style={{ position: "relative" }}>
+                <button onClick={() => setAdminOpen(!adminOpen)} style={{ padding: "8px 12px", borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>⚙️ Admin ▾</button>
+                {adminOpen && (
+                  <div style={{ position: "absolute", top: "100%", right: 0, background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: 8, minWidth: 150, boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+                    {adminItems.map(item => (
+                      <Link key={item.href} href={item.href} onClick={() => setAdminOpen(false)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", color: "#94a3b8", textDecoration: "none", borderRadius: 6 }}>{item.icon} {item.label}</Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <Link href="/settings" style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8, padding: "8px 12px", borderRadius: 6, background: "#0f172a", border: "1px solid #334155", textDecoration: "none", color: router.pathname === "/settings" ? "#f1f5f9" : "#cbd5e1", fontSize: 13, fontWeight: 500 }}>
               <span style={{ fontSize: 14 }}>👤</span>
@@ -120,7 +125,7 @@ export default function Layout({ children }) {
           </div>
         </div>
       </nav>
-      
+
       {overdueCount > 0 && router.pathname !== "/overdue" && showOverdueBanner && (
         <div style={{ background: "linear-gradient(90deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05))", borderBottom: "1px solid rgba(239,68,68,0.3)", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <span style={{ color: "#fca5a5", fontSize: 14 }}>⚠️ You have {overdueCount} overdue action item{overdueCount !== 1 ? "s" : ""}</span>
@@ -128,14 +133,14 @@ export default function Layout({ children }) {
           <button onClick={() => setShowOverdueBanner(false)} style={{ background: "transparent", color: "#94a3b8", border: "none", padding: "6px 8px", fontSize: 18, cursor: "pointer" }}>×</button>
         </div>
       )}
-      
+
       {toast && (
         <div style={{ position: "fixed", bottom: 24, right: 24, background: toast.type === "success" ? "#10b981" : toast.type === "error" ? "#ef4444" : "#3b82f6", color: "#fff", padding: "12px 20px", borderRadius: 8, boxShadow: "0 10px 40px rgba(0,0,0,0.3)", display: "flex", alignItems: "center", gap: 12, zIndex: 100 }}>
           <span style={{ fontSize: 18 }}>{toast.type === "success" ? "✅" : toast.type === "error" ? "❌" : "ℹ️"}</span>
           <span style={{ fontSize: 14, fontWeight: 500 }}>{toast.message}</span>
         </div>
       )}
-      
+
       <main style={{ maxWidth: 1400, margin: "0 auto", padding: 24 }}>{children}</main>
 
       <style jsx global>{`
