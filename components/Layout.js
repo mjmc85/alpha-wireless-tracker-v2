@@ -10,6 +10,7 @@ export default function Layout({ children }) {
   const [showOverdueBanner, setShowOverdueBanner] = useState(true)
   const [toast, setToast] = useState(null)
   const [adminOpen, setAdminOpen] = useState(false)
+  const [currentUserName, setCurrentUserName] = useState("")
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
@@ -26,6 +27,7 @@ export default function Layout({ children }) {
   ]
 
   useEffect(() => {
+    setCurrentUserName(localStorage.getItem("aw_user_name") || "Admin")
     loadOverdueCount()
     const interval = setInterval(loadOverdueCount, 60000)
     return () => clearInterval(interval)
@@ -47,6 +49,8 @@ export default function Layout({ children }) {
 
   function logout() {
     localStorage.removeItem("aw_auth")
+    localStorage.removeItem("aw_user_id")
+    localStorage.removeItem("aw_user_name")
     router.push("/")
   }
 
@@ -107,7 +111,12 @@ export default function Layout({ children }) {
               )}
             </div>
 
-            <button onClick={logout} style={{ marginLeft: 8, padding: "8px 12px", borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, cursor: "pointer" }}>🚪 Logout</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8, padding: "8px 12px", borderRadius: 6, background: "#0f172a", border: "1px solid #334155" }}>
+              <span style={{ fontSize: 14 }}>👤</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "#cbd5e1" }}>{currentUserName}</span>
+            </div>
+
+            <button onClick={logout} style={{ marginLeft: 4, padding: "8px 12px", borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", fontSize: 14, cursor: "pointer" }}>🚪 Logout</button>
           </div>
         </div>
       </nav>
