@@ -63,20 +63,29 @@ export default function WeeklyCheckin() {
 
   async function saveCheckin(userId, field, value) {
     const existing = checkins.find(c => c.user_id === userId)
-    if (existing) {
-      await supabase
-        .from("weekly_checkins")
-        .update({ [field]: value })
-        .eq("id", existing.id)
-      setCheckins(checkins.map(c => c.id === existing.id ? { ...c, [field]: value } : c))
-    } else {
-      const { data } = await supabase
-        .from("weekly_checkins")
-        .insert([{ week_start: currentWeek, user_id: userId, [field]: value }])
-        .select("*")
-        .single()
-      if (data) setCheckins([...checkins, data])
-      // refresh week list in case this is a new week entry
+    // Build the full record so we don't wipe the other field on upsert
+    const record = {
+      week_start: currentWeek,
+      user_id: userId,
+      commitments: existing?.commitments || null,
+      stucks: existing?.stucks || null,
+      [field]: value,
+    }
+    const { data, error } = await supabase
+      .from("weekly_checkins")
+      .upsert(record, { onConflict: "week_start,user_id" })
+      .select("*")
+      .single()
+
+    if (error) {
+      window.dispatchEvent(new CustomEvent("showToast", { detail: { type: "error", message: "Failed to save check-in" } }))
+      return
+    }
+    if (data) {
+      setCheckins(prev => {
+        const without = prev.filter(c => c.user_id !== userId)
+        return [...without, data]
+      })
       if (!weeks.includes(currentWeek)) setWeeks([currentWeek, ...weeks])
     }
   }
