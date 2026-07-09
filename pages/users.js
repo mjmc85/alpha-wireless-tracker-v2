@@ -22,6 +22,7 @@ export default function Users() {
 
   useEffect(() => {
     if (!localStorage.getItem("aw_auth")) { router.push("/"); return }
+    if (localStorage.getItem("aw_user_id") !== "admin") { router.push("/dashboard"); return }
     loadData()
   }, [])
 
@@ -43,7 +44,7 @@ export default function Users() {
     setForm({
       full_name: u.full_name || "",
       username: u.username || "",
-      password: u.password || "",
+      password: "",
       role: u.role || "",
       email: u.email || "",
       security_question: u.security_question || "",
