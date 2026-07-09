@@ -19,7 +19,7 @@ export default function Layout({ children }) {
     { href: "/meetings", label: "Meetings", icon: "🗓️" },
     { href: "/weekly-checkin", label: "Check-in", icon: "📝" },
     { href: "/calendar", label: "Calendar", icon: "📅" },
-    { href: "/annual", label: "Annual", icon: "🎯" },
+    //{ href: "/annual", label: "Annual", icon: "🎯" },  // Hidden - re-anable later if required
   ]
 
   const adminItems = [
